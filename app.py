@@ -80,6 +80,26 @@ def extract_measurements(text):
         })
 
     return results
+    uploaded_file = st.file_uploader(
+    "Upload Kaggle Medical Dataset (.csv)",
+    type=["csv"]
+)
+
+if uploaded_file is not None:
+
+    import pandas as pd
+
+    df = pd.read_csv(uploaded_file)
+
+    st.success("Kaggle dataset uploaded successfully!")
+
+    st.write("Dataset Preview")
+    st.dataframe(df.head(10))
+
+    st.write("Total Records:", len(df))
+
+    st.write("Available Columns:")
+    st.write(df.columns.tolist())
 
 # Upload TXT report
 uploaded_file = st.file_uploader(
