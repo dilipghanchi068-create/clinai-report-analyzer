@@ -16,7 +16,7 @@ st.write(
     "or paste the report text below."
 )
 
-# Load existing clinical report model
+# Load the trained machine-learning model
 @st.cache_resource
 def load_model():
     model_path = Path("clinical_report_classifier.joblib")
@@ -26,15 +26,7 @@ def load_model():
         )
     return joblib.load(model_path)
 
-# Load new Kaggle medical specialty model
-@st.cache_resource
-def load_specialty_model():
-    model_path = Path("clinai_specialty_model.pkl")
-    if not model_path.exists():
-        return None
-    return joblib.load(model_path)
-
-# Supported medical terms
+# Supported medical terms for text matching
 MEDICAL_TERMS = [
     "hemoglobin", "glucose", "blood glucose",
     "creatinine", "cholesterol", "triglycerides",
@@ -45,7 +37,7 @@ MEDICAL_TERMS = [
     "diabetes", "infection", "anemia"
 ]
 
-# Extract medical terms
+# Extract recognized terms
 def extract_terms(text):
     found = []
     lower_text = text.lower()
@@ -57,7 +49,7 @@ def extract_terms(text):
 
     return found
 
-# Extract laboratory measurements
+# Extract simple test-value-unit patterns
 def extract_measurements(text):
     pattern = re.compile(
         r"\b(hemoglobin|glucose|creatinine|cholesterol|"
@@ -71,7 +63,6 @@ def extract_measurements(text):
     )
 
     results = []
-
     for match in pattern.finditer(text):
         results.append({
             "Test": match.group(1).title(),
@@ -80,29 +71,8 @@ def extract_measurements(text):
         })
 
     return results
-   dataset_file = st.file_uploader(
-    "Upload Kaggle Medical Dataset (.csv)",
-    type=["csv"]
-)
-)
 
-if uploaded_file is not None:
-
-    import pandas as pd
-
-    df = pd.read_csv(uploaded_file)
-
-    st.success("Kaggle dataset uploaded successfully!")
-
-    st.write("Dataset Preview")
-    st.dataframe(df.head(10))
-
-    st.write("Total Records:", len(df))
-
-    st.write("Available Columns:")
-    st.write(df.columns.tolist())
-
-# Upload TXT report
+# Upload a TXT file
 uploaded_file = st.file_uploader(
     "Upload clinical report (.txt)",
     type=["txt"]
@@ -115,17 +85,14 @@ if uploaded_file is not None:
         report_text = uploaded_file.getvalue().decode(
             "utf-8-sig"
         )
-
         st.success("TXT report uploaded successfully.")
-
         with st.expander("Preview uploaded report"):
             st.text(report_text[:5000])
-
     except UnicodeDecodeError:
         st.error("Could not read this file as UTF-8 text.")
         report_text = ""
 
-# Manual report input
+# Allow manual text entry too
 manual_text = st.text_area(
     "Or paste your clinical report here",
     height=150,
@@ -135,67 +102,27 @@ manual_text = st.text_area(
 if manual_text.strip():
     report_text = manual_text.strip()
 
-# Analyze report
 if st.button("Analyze Report", type="primary"):
-
     if not report_text.strip():
-        st.warning(
-            "Please upload a TXT file or enter report text."
-        )
-
+        st.warning("Please upload a TXT file or enter report text.")
     else:
         try:
             with st.spinner("Analyzing report..."):
-
-                # Existing model
                 model = load_model()
                 category = model.predict([report_text])[0]
-
-                # New Kaggle dataset model
-                specialty_model = load_specialty_model()
-
-                specialty = None
-
-                if specialty_model is not None:
-                    specialty = specialty_model.predict(
-                        [report_text]
-                    )[0]
-
-                # Existing features
                 terms = extract_terms(report_text)
-
-                measurements = extract_measurements(
-                    report_text
-                )
+                measurements = extract_measurements(report_text)
 
             st.subheader("Analysis Result")
-
-            st.write(
-                "**Predicted Report Category:**",
-                str(category)
-            )
-
-            # New feature
-            st.write("**Predicted Medical Specialty:**")
-
-            if specialty is not None:
-                st.success(str(specialty))
-            else:
-                st.warning(
-                    "Specialty model not uploaded yet."
-                )
+            st.write("**Predicted Report Category:**", str(category))
 
             st.write("**Medical Terms Found:**")
-
             if terms:
                 st.write(", ".join(terms))
             else:
-                st.info(
-                    "No matching terms found in the supported list."
-                )
+                st.info("No matching terms found in the supported list.")
 
             st.write("**Laboratory Measurements:**")
-
             if measurements:
                 st.dataframe(
                     measurements,
@@ -203,19 +130,13 @@ if st.button("Analyze Report", type="primary"):
                     hide_index=True
                 )
             else:
-                st.info(
-                    "No supported test-value pairs were detected."
-                )
+                st.info("No supported test-value pairs were detected.")
 
-            # Report summary
             sentences = re.split(
                 r"(?<=[.!?])\s+|\n+",
                 report_text.strip()
             )
-
-            sentences = [
-                s.strip() for s in sentences if s.strip()
-            ]
+            sentences = [s.strip() for s in sentences if s.strip()]
 
             st.write("**Report Summary:**")
             st.write(" ".join(sentences[:3]))
@@ -228,7 +149,7 @@ if st.button("Analyze Report", type="primary"):
 
         except Exception as error:
             st.error(
-                "Analysis failed. Check the model files and "
-                "their compatibility with the input text."
+                "Analysis failed. Check the model file and its "
+                "compatibility with the input text."
             )
             st.caption(f"Technical detail: {error}")
