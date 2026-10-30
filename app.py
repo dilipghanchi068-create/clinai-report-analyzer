@@ -80,9 +80,10 @@ def extract_measurements(text):
         })
 
     return results
-    uploaded_file = st.file_uploader(
+   dataset_file = st.file_uploader(
     "Upload Kaggle Medical Dataset (.csv)",
     type=["csv"]
+)
 )
 
 if uploaded_file is not None:
